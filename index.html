@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>IIDE · Horarios</title>
+<meta name="theme-color" content="#2b0f1f">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600;700&display=swap');
+
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  html,body { background:#2b0f1f; height:100%; }
+  body {
+    font-family:'Inter',sans-serif;
+    color:#f6e9ee;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* ================= SPLASH ================= */
+  #splash {
+    position:fixed; inset:0; z-index:999;
+    background:#2b0f1f;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition: opacity .6s ease, visibility .6s ease;
+  }
+  #splash .logo-wrap {
+    width:110px; height:110px; margin-bottom:18px;
+    animation: splashPop .7s cubic-bezier(.34,1.56,.64,1);
+  }
+  #splash img { width:100%; height:100%; }
+  #splash h1 {
+    font-family:'Sora',sans-serif; font-weight:800; font-size:17px; color:#FFC96E;
+    text-align:center; padding:0 30px; opacity:0; animation: fadeUp .6s ease .3s forwards;
+  }
+  #splash .tagline {
+    font-size:11px; opacity:0; color:#c9a6b5; margin-top:6px;
+    animation: fadeUp .6s ease .5s forwards;
+  }
+  @keyframes splashPop { 0%{ transform:scale(.5); opacity:0 } 100%{ transform:scale(1); opacity:1 } }
+  @keyframes fadeUp { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
+  #splash.hide { opacity:0; visibility:hidden; pointer-events:none; }
+
+  /* ================= APP ================= */
+  #app { padding:16px 14px 40px; max-width:900px; margin:0 auto; }
+
+  .top { display:flex; align-items:center; gap:11px; margin-bottom:14px; }
+  .mark { width:42px; height:42px; border-radius:11px; flex-shrink:0; overflow:hidden; }
+  .mark img { width:100%; height:100%; display:block; }
+  .top h1 { font-size:16.5px; font-family:'Sora',sans-serif; font-weight:800; line-height:1.2; }
+  .top span.sub { display:block; font-size:10.5px; opacity:.6; margin-top:2px; }
+  .top .clock {
+    margin-left:auto; font-family:'JetBrains Mono',monospace; font-weight:700;
+    color:#FFC96E; font-size:14px; text-align:right;
+  }
+  .top .clock small { display:block; font-size:8.5px; opacity:.55; font-weight:500; }
+
+  .day-tabs {
+    display:flex; gap:6px; overflow-x:auto; margin-bottom:14px; padding-bottom:2px;
+  }
+  .day-tabs button {
+    flex:0 0 auto; padding:8px 13px; border-radius:999px; border:1px solid rgba(255,201,110,.3);
+    background:#3a1729; color:#e8cdd8; font-size:11.5px; font-weight:600; cursor:pointer;
+  }
+  .day-tabs button.active { background:#FFC96E; color:#2b0f1f; border-color:#FFC96E; }
+  .day-tabs button.today::after { content:" •"; color:#39FF88; }
+
+  .weekend-note {
+    background:rgba(255,201,110,.1); border:1px solid rgba(255,201,110,.3); color:#FFC96E;
+    font-size:11px; padding:8px 12px; border-radius:10px; margin-bottom:14px; display:none;
+  }
+  .weekend-note.show { display:block; }
+
+  .sheet {
+    border:1.5px solid rgba(255,201,110,.35);
+    border-radius:12px;
+    overflow:hidden;
+    background:#241224;
+    margin-bottom:8px;
+  }
+  .sheet-head { display:grid; grid-template-columns: repeat(3, 1fr); }
+  .sheet-head .th {
+    background:#3a1729; padding:9px 8px; font-family:'Sora',sans-serif; font-weight:700; font-size:11.5px;
+    color:#FFC96E; border-right:1px solid rgba(255,201,110,.3); border-bottom:1.5px solid rgba(255,201,110,.35);
+    text-align:center;
+  }
+  .sheet-head .th:last-child { border-right:none; }
+  .sheet-head .th small { display:block; font-size:8.5px; opacity:.6; font-weight:500; color:#f6e9ee; margin-top:1px; }
+
+  /* grilla real: 3 columnas x 6 filas fijas (Primera,Segunda,Tercera,Recreo,Cuarta,Quinta)
+     así las celdas de los 3 años quedan siempre alineadas entre sí, como un Excel real */
+  .sheet-body {
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(6, auto);
+  }
+
+  .cell {
+    padding:11px 9px;
+    border-right:1px solid rgba(255,201,110,.18);
+    border-bottom:1px solid rgba(255,201,110,.18);
+    font-size:11.5px;
+    transition: background .3s, box-shadow .3s;
+    position:relative;
+    cursor:pointer;
+    display:flex; flex-direction:column; justify-content:center;
+  }
+  .cell.col-3 { border-right:none; }
+
+  .cell .materia { font-weight:700; font-size:12px; line-height:1.3; }
+  .cell .horario { display:block; font-family:'JetBrains Mono',monospace; font-weight:600; font-size:10px; opacity:.7; margin-top:4px; }
+  .cell .prof { font-size:10.5px; opacity:.85; margin-top:4px; }
+  .cell .prof b { font-weight:600; opacity:1; }
+  .cell .edit-hint { font-size:8.5px; opacity:0; margin-top:5px; color:#c9a97e; transition:opacity .2s; }
+  .cell:active .edit-hint, .cell:hover .edit-hint { opacity:.7; }
+
+  .cell.empty { opacity:.3; font-style:italic; font-size:10px; text-align:center; }
+
+  .cell.pending { opacity:.55; }
+  .cell.done { opacity:.25; }
+  .cell.done .materia::after { content:" ✓"; }
+
+  .cell.now {
+    background: rgba(255,201,110,.1);
+    box-shadow: inset 0 0 0 1.5px #FFC96E, 0 0 14px rgba(255,201,110,.35);
+    animation: cellGlow 2s ease-in-out infinite;
+  }
+  @keyframes cellGlow {
+    0%,100% { box-shadow: inset 0 0 0 1.5px rgba(255,201,110,.6), 0 0 10px rgba(255,201,110,.25); }
+    50% { box-shadow: inset 0 0 0 1.5px #FFC96E, 0 0 20px rgba(255,201,110,.5); }
+  }
+  .cell.now .materia::before {
+    content:"● EN CURSO"; display:block; font-size:8px; font-weight:800; letter-spacing:.04em;
+    color:#FFC96E; margin-bottom:4px; animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  .cell.paused { background:rgba(255,255,255,.02); box-shadow:none; opacity:.55; animation:none; }
+  .cell.paused .materia::before {
+    content:"⏸ en pausa (recreo)"; display:block; font-size:8px; font-weight:700;
+    color:#c9a97e; margin-bottom:4px;
+  }
+
+  .cell.recreo { background:rgba(232,130,58,.05); }
+  .cell.recreo .materia { color:#FFD9B3; }
+  .cell.recreo.now {
+    background: rgba(232,130,58,.14);
+    box-shadow: inset 0 0 0 1.5px #E8823A, 0 0 14px rgba(232,130,58,.4);
+    animation: recreoGlow 2s ease-in-out infinite;
+  }
+  @keyframes recreoGlow {
+    0%,100% { box-shadow: inset 0 0 0 1.5px rgba(232,130,58,.6), 0 0 10px rgba(232,130,58,.3); }
+    50% { box-shadow: inset 0 0 0 1.5px #E8823A, 0 0 20px rgba(232,130,58,.55); }
+  }
+  .cell.recreo.now .materia::before {
+    content:"☕ RECREO"; display:block; font-size:8px; font-weight:800; letter-spacing:.04em;
+    color:#E8823A; margin-bottom:4px; animation: blink 1s infinite;
+  }
+
+  .empty-day { text-align:center; padding:8px; font-size:10px; opacity:.4; }
+
+  .footer-sig { text-align:center; font-size:10px; opacity:.4; margin-top:22px; letter-spacing:.02em; }
+
+  /* ------- modal de edición ------- */
+  #editOverlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none;
+    align-items:flex-end; justify-content:center; z-index:500;
+  }
+  #editOverlay.show { display:flex; }
+  #editModal {
+    background:#3a1729; width:100%; max-width:480px; border-radius:18px 18px 0 0;
+    padding:20px 18px 26px; border-top:1px solid rgba(255,201,110,.3);
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from{ transform:translateY(100%) } to{ transform:translateY(0) } }
+  #editModal h3 { font-family:'Sora',sans-serif; font-size:14.5px; color:#FFC96E; margin-bottom:4px; }
+  #editModal .em-sub { font-size:11px; opacity:.6; margin-bottom:16px; }
+  #editModal label { font-size:10.5px; opacity:.7; display:block; margin-bottom:5px; }
+  #editModal input {
+    width:100%; padding:10px 12px; border-radius:9px; border:1px solid rgba(255,201,110,.3);
+    background:#241224; color:#fff; font-size:13px; margin-bottom:12px; font-family:'Inter',sans-serif;
+  }
+  #editModal input:focus { outline:none; border-color:#FFC96E; }
+  .em-actions { display:flex; gap:10px; margin-top:6px; }
+  .em-actions button {
+    flex:1; padding:11px; border-radius:9px; border:none; font-weight:700; font-size:12.5px; cursor:pointer;
+  }
+  .em-save { background:#FFC96E; color:#2b0f1f; }
+  .em-cancel { background:transparent; border:1px solid rgba(255,255,255,.2) !important; color:#f6e9ee; }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logo-wrap"><img src="data:image/png;base64,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" alt="IIDE"></div>
+  <h1>Instituto Integral<br>de Educación</h1>
+  <div class="tagline">A-1214 · Asociado a la UNESCO</div>
+</div>
+
+<div id="app">
+  <div class="top">
+    <div class="mark"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAKhElEQVR4nO2dS6hd1RnH/9oYE40xxnhJfeB1IClmECyURgpG8YUEVBLQilopDuzgFh+FQm3jwJSgg0qFO+ikSurMx0WjceTrBiVS3x2IQcWj2Nakak2MRq8xdlB33Gff/d5rre9b6/v/Zueec89eZ6////t/az/OAQghhBBCCCGEEEIIISRpjpAeQBduu2frt9JjIO3YctP1UWhL7SAp9vTQaApVA6Lo7aDFDCoGQeHbRdoIohun8EmGlBFENkrhkypCGyHoxih80pZQRjgyxEYAip90I5RevLuMwidD8ZkGXhOA4icu8Kkjbwag+IlLfOnJiwEofuIDH7pybgCKn/jEtb6cGoDiJyFwqTNnBqD4SUhc6c2JASh+IoEL3Q0+vkrx13PZ65sHv8e2NZscjCRdhpwnGGQAiv97XAi9KzTG9/Q1wQLXA7FCW8FPTk4M3tZotKfVGGiI7vROAGvVv0nwLoTelSpjZFgzRJ8U6GUAK+KvE72E4JuoM4QVM3Q1AVugEsqEr1HwRYpjzBsi+0xWjNCWzgmQavWvqvYxCL+JqmRI1QxdUsB8AsRa7buQ/zxMhXE6JUBK1d+C8OsoS4WUjNA2BcwlgHXhZ2Sf2XoitE6AFKp/UfwWhV9FMRFSMEGbFDCRABR+M8VEsJIGrRIg5uqfFz+F3558IsRsgqYUSDYBWPWHMTk5YSINgn0tSkiKVZ/i70dx30lc8OebRgPE1v6w5XFPzCZo0m8yLRBbHr+k2hIl0QKx5QlDii1R9AZgyxOelEwQtQEofjlSMUGtATQvgCl+eWIxQZ2Oo0wAil8PsZigiugMQPHrI2YTRGUAil8vsZogGgNQ/PqJ0QRRnAirEv/shmmJ4ZAS1s1MAZh/wkz7yTL1CVAm/tkN0xS/MvJzElMSqDZAlfiJXmIzQRQt0OTkBIUfEdlcrZuZavzyLmnUJkBWNbjgjZts/rSmgEoDFHcWq3+cFOdNownUGaDY91P8cTO7YVr1ekCdATKstD471t8sPYQgaJ1PVQYo9v2pV/9M/KmboHhkSFMKqDGApp1C/KNlvtUYIENrVLqmWPVTT4EMbfOrwgA85GkLTa2QuAE07ITQVFV7KymQR3r+xQ2QwepvCy3zLWoAafdL0FTlmQJhUZEAWqoBCYuGeRczAKv/8NelhJQexBNAQxUIgUVRt0F6/kUMYLH6d8WiYSR0IZoA0u4PRV8xWzGBpA7EWyBCJAluAGtnfYdWcWspELoNYgIQ0wQ1gLXFr6vqbSUFMkLqRCQBLLQ/1kTrAgldsAWKBBrKD8EMYGnxS7H2J/RimAkQETSWe2gAx/gWKU3gFhqAmCaIAaz0/6Gqc+opEHIdwAQgpqEBHBG6KqeeAqGgARxAMcaLdwNY6f8lSNl4odYBTICBpCxCC9AAkUMDDoMGGADFFz80QALQiP2hAXqiTXTaxhMLXg2Q6hEgii0MIY4EMQESgsbsDg3QEYosLWiAxKBBu0EDdIDiSg8aIEFo1PbQAC2hqNKEBkgUGrYdNEALKKZ0WSA9AO1cfOJpuHI0e/jxw3dM45l7Hxx7zR9feBjLVq6ofE3xeQA4dPAbHJz7Gl/s24+9uz/Ch2+/h13Pv4RXtz+Lr7+aqxxP2XtVMXrtDfz9qK9avdYqTAAhjlzwAyw8ZhGWrVyB09f8CD/deAl+cffvsXnnQzjnqvXOtsP0qocGqEFCPEuWH49r7votrtx8S/BtW4QtkABZi7Rw8SKccPIEVp+3Fhfc+HMcP3Hi4dece90V+M+7H8xrt6req44d62/Gudv/7GLoycEEqCBE9Z878CV2v/M+nv7rA7jz0hvw4VujsefX3/pLHLNsqfdxWIYGUMJnH/8Xf/vNlrG/LVpyLH5y+YVO3p9rgXLYApUgJZb3/7EL/9r1Lk5edcbhv6362Y8xu3Wm8n823j6FjbdPlT5336/vwMuPPeV8nCnBBCggXSn/+cZbY4+Xn/pDZ+8t/dk04tUA29ZsAgCMRnt8biYpDnz2+djjxccdKzQSeTLdZDryAVugHBoq5OKlS8YeFw1RpM1RoDw8IjQOWyBlnLb6zLHHn3zwb6GR2IAG+A4N1f+Ms8/CyjMnx/626/lXnG9Hw2fVAg2ghONWnIBr//S7sb99uf9zvPjok162RxP8H64BICeGo45eiOWnrMTq89fiwl9djaUnLR97fvvd9+GLT/eJjM0K3g2wbc0mXPb6ZoxGe5L7epS+1B27z9hx/yOtFrdN73XLqosqry7VvCAOcQQIYAKoawX2f7IXj975F+x84AnpoZjAtAEkxX/om0M4ODeHA/v2Y+/uj7H7nffw5nMv4ZXHn6m9H8A1mlMgBKYN0IY/rN04+DVt3qMtLt+LBDoKpPGMsLbWRxJt+yJU/w/wMCgxjkkDaKt4GrC6T0wagJRj0QTBDKBlHWBxkmMiZP8PGEsAir8Za/tIxADSKUB0IqGLoAYIFWtlWKtsQ5DeVyF1YqoFIqRIcANILIalK1qMhN5noRe/GUwAYhpRA4RIAVb//oTad5IHRUQMILkYJnqR0IV4C+TT/az+w/G9D6UPiYtdDp3dKeYTy9e5x4ZUVyCeAIB8FSAyaJh3UQNwLUAAWR2oSABARzUg4dAy3+IGYArYRnr+xQ0A6LlUmoRB6qxvGSoMkIcmSBtt86vGABqqAQmHlvlWYwBgfiu0bqb+29NIHGTzqKn1yVBlgDzaopIMQ+t8qjNAvjqMRnuYApGzbmZqTPyaqj+g0ADA/J1EE8RJcd60iR9QagCAh0ZTQWPfnyeK7wbNt0KzG6aFR0OaKC56NaM2AYD56wGA7ZB2ysSvtfoDyg0AVJuARtBFfk5iET8QSQuUv3cg/0szNIE+YhI/EEECZJQlAdFFbOIHIjIAQBNoJkbxA5EZAKAJNBKr+IEIDQDQBJqIWfxAgwG23HT9EaEG0hWaQJ5YxF+n4ygTIIMmkCMW8TcRtQEAmkCCVMQPJGAAYL4JaAQ/FPdt7OIHIjkR1oZsMspOmJHhpCb8jMYE0LwQLoMtkXtiFn+TfpNogYqwJXJDii1PkWRaoCJsiYaRuvAzWrc3t92z9VufA/FJ8Ut4aYRqimkZs/jbtO/JJkCesjQAaIQ8KQm/C50WuDGnQEbZV7JbNkLZ+igF8bc9eGMiAfIU0wCwmQipCr8rnQ9xppACeawlggXhdzl0by4BitQlApCGGaoOA6cm/D70OsmVWgoUSSUVLFT7Il1P3JpPgDKaUgHQaYi6E36pC78vvS9zSD0FijT9oJ+EIZrOcFsTfZ/LdgZd52PNBHna/sKlC2O0vZTDmuDz9L1mjS1QT4piqzKEz+uQLAveFYOv9LScAm1w8VvIFHo9Q65YdnKpM01ApBh6ub6Ty6Fju2eApIEL3Tm7H4AmICFxpTenN8TQBCQELnXm/I4wmoD4xLW+vNwSSRMQH/jQlbd7gmkC4hJfevJ6UzxNQFzgU0fBBMpzBaQrIQposK9FYRqQLoTSi4gomQakitCFUrQq0wgkQ6pDUNGW0Ah2kW6NVRggg0awg7TwM1QMogyaIT20iD6PugHVQVPEg0axE0IIIYQQQgghhBCr/A90rnTZDvWRYAAAAABJRU5ErkJggg==" alt="IIDE"></div>
+    <div>
+      <h1>Instituto Integral de Educación</h1>
+      <span class="sub">Analista de Sistemas · Nivel Terciario</span>
+    </div>
+    <div class="clock"><small>ahora</small><span id="liveClock">--:--</span></div>
+  </div>
+
+  <div class="day-tabs" id="dayTabs"></div>
+  <div class="weekend-note" id="weekendNote">Hoy es fin de semana, no hay clases. Mostrando el horario de Lunes.</div>
+
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="th">1° Año A <small>170/16</small></div>
+      <div class="th">2° Año A <small>170/16</small></div>
+      <div class="th">3° Año A <small>170/16</small></div>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+  </div>
+
+  <div class="footer-sig">Desarrollado por Nahuel Rodríguez</div>
+</div>
+
+<div id="editOverlay">
+  <div id="editModal">
+    <h3 id="emTitle">Editar materia</h3>
+    <div class="em-sub" id="emSub">18:30 – 19:50</div>
+    <label>Profesor/a</label>
+    <input id="emProf" type="text" placeholder="Nombre del profesor/a">
+    <label>Aula</label>
+    <input id="emAula" type="text" placeholder="Aula o laboratorio">
+    <div class="em-actions">
+      <button class="em-cancel" onclick="closeEdit()">Cancelar</button>
+      <button class="em-save" onclick="saveEdit()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= DATOS BASE (por franja horaria, tal cual el horario original) ================= */
+const SLOTS = [
+  {ini:'18:30', fin:'19:10'},
+  {ini:'19:10', fin:'19:50'},
+  {ini:'19:50', fin:'20:30'},
+  {ini:'20:45', fin:'21:25'},
+  {ini:'21:25', fin:'22:05'},
+];
+const RECREO = {ini:'20:30', fin:'20:45'};
+
+const DIAS = ['lunes','martes','miercoles','jueves','viernes'];
+const DIAS_LABEL = {lunes:'Lunes', martes:'Martes', miercoles:'Miércoles', jueves:'Jueves', viernes:'Viernes'};
+
+// null = "---" (libre). Cada entrada: {materia, prof, aula}
+const RAW = {
+  1: {
+    lunes:     [{m:'Inglés 2', p:'Adrogué', a:'Aula P1'},{m:'Inglés 2', p:'Adrogué', a:'Aula P1'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'}],
+    martes:    [{m:'Com. Efect.', p:'Larrea', a:'Aula P1'},{m:'Com. Efect.', p:'Larrea', a:'Aula P1'},{m:'Sist. Adm.', p:'Barzabal', a:'Aula 2/3'},{m:'Sist. Adm.', p:'Barzabal', a:'Aula 2/3'},{m:'Sist. Adm.', p:'Barzabal', a:'Aula 2/3'}],
+    miercoles: [{m:'Estadística', p:'Montero', a:'Aula P1'},{m:'Estadística', p:'Montero', a:'Aula P1'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'},{m:'T. de Comp. 2', p:'Triantafilu', a:'SUM'}],
+    jueves:    [{m:'Estruc. Datos', p:'Branda', a:'Laboratorio'},{m:'Estruc. Datos', p:'Branda', a:'Laboratorio'},{m:'Estruc. Datos', p:'Branda', a:'Laboratorio'},{m:'Estruc. Datos', p:'Branda', a:'Laboratorio'}, null],
+    viernes:   [{m:'Estruc. Datos', p:'Branda', a:'A confirmar'},{m:'Estruc. Datos', p:'Branda', a:'A confirmar'},{m:'Arq. y Sist. Op.', p:'A confirmar', a:'A confirmar'},{m:'Arq. y Sist. Op.', p:'A confirmar', a:'A confirmar'},{m:'Arq. y Sist. Op.', p:'A confirmar', a:'A confirmar'}],
+  },
+  2: {
+    lunes:     [{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'Redes', p:'Torres', a:'Aula 2/3'},{m:'Redes', p:'Torres', a:'Aula 2/3'}],
+    martes:    [{m:'Integ. Prog.', p:'Jucys', a:'SUM'},{m:'Integ. Prog.', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'}],
+    miercoles: [{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'An. y Me. Sist.', p:'A confirmar', a:'A confirmar'},{m:'Redes', p:'Torres', a:'A confirmar'},{m:'Redes', p:'Torres', a:'A confirmar'}],
+    jueves:    [{m:'Integ. Prog.', p:'Jucys', a:'SUM'},{m:'Integ. Prog.', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'},{m:'T. de Comp. 4', p:'Jucys', a:'SUM'}],
+    viernes:   [{m:'Sim. Proc.', p:'Puente', a:'Aula 2/3'},{m:'Sim. Proc.', p:'Puente', a:'Aula 2/3'},{m:'Pres. Efect.', p:'Lucena', a:'Aula P1'},{m:'Pres. Efect.', p:'Lucena', a:'Aula P1'}, null],
+  },
+  3: {
+    lunes:     [{m:'Int. de Tecn.', p:'Torres', a:'Aula 2/3'},{m:'Int. de Tecn.', p:'Torres', a:'Aula 2/3'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'}],
+    martes:    [{m:'Integ. de Sist.', p:'Branda', a:'Laboratorio'},{m:'Integ. de Sist.', p:'Branda', a:'Laboratorio'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'},{m:'T. de Comp. 6', p:'Porfirio', a:'Laboratorio'}],
+    miercoles: [{m:'Int. de Tecn.', p:'Torres', a:'Laboratorio'},{m:'Int. de Tecn.', p:'Torres', a:'Laboratorio'},{m:'Seg. Int. Sist.', p:'Torres', a:'Laboratorio'},{m:'Integ. de Sist.', p:'Branda', a:'Laboratorio'},{m:'Integ. de Sist.', p:'Branda', a:'Laboratorio'}],
+    jueves:    [{m:'Comp. Avanz.', p:'Fernández', a:'Aula 2/3'},{m:'Comp. Avanz.', p:'Fernández', a:'Aula 2/3'},{m:'Comp. Avanz.', p:'Fernández', a:'Aula 2/3'},{m:'Comp. Avanz.', p:'Fernández', a:'Aula 2/3'}, null],
+    viernes:   [{m:'Seg. Int. Sist.', p:'Torres', a:'A confirmar'},{m:'Seg. Int. Sist.', p:'Torres', a:'A confirmar'},{m:'Seg. Int. Sist.', p:'Torres', a:'A confirmar'},{m:'Integ. de Sist.', p:'Branda', a:'A confirmar'},{m:'Integ. de Sist.', p:'Branda', a:'A confirmar'}],
+  }
+};
+
+/* ================= AGRUPACIÓN AUTOMÁTICA ================= */
+function toMin(hhmm) { const [h,m] = hhmm.split(':').map(Number); return h*60+m; }
+function toClock(min) { const h=Math.floor(min/60), m=Math.round(min%60); return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); }
+
+// Fila de grilla (1-indexada) para cada franja horaria. La fila 4 queda
+// reservada siempre para el recreo, por eso Cuarta/Quinta saltan a 5/6.
+function filaDeIdx(idx) { return idx < 2 ? idx+1 : idx+2; } // 0,1 -> 1,2 (Primera,Segunda) / 2 -> 3 (Tercera) / 3,4 -> 5,6 (Cuarta,Quinta)
+
+// Agrupa consecutivos iguales, pero SIN cruzar el recreo (índice 2 -> 3),
+// para que cada materia caiga en filas contiguas reales de la grilla.
+function agruparDia(rawDay) {
+  const segmentos = [[0,1,2],[3,4]];
+  const bloques = [];
+  segmentos.forEach(idxs => {
+    let actual = null;
+    idxs.forEach(i => {
+      const slot = rawDay[i];
+      if (!slot) { actual = null; return; }
+      if (actual && actual.m===slot.m && actual.p===slot.p && actual.a===slot.a) {
+        actual.finIdx = i;
+      } else {
+        actual = { m:slot.m, p:slot.p, a:slot.a, iniIdx:i, finIdx:i };
+        bloques.push(actual);
+      }
+    });
+  });
+  return bloques.map(b => ({
+    materia: b.m, prof: b.p, aula: b.a,
+    ini: SLOTS[b.iniIdx].ini, fin: SLOTS[b.finIdx].fin,
+    rowStart: filaDeIdx(b.iniIdx), rowEnd: filaDeIdx(b.finIdx) + 1
+  }));
+}
+
+// Rellena huecos (slots "---") con celdas "Libre" para que la grilla no quede
+// con espacios en blanco fuera de lugar, y agrega el recreo si el día tiene clases.
+function completarColumna(bloques) {
+  const ocupadas = new Set();
+  bloques.forEach(b => { for (let r=b.rowStart; r<b.rowEnd; r++) ocupadas.add(r); });
+  const todas = [1,2,3,5,6];
+  let libreActual = null;
+  todas.forEach(r => {
+    if (ocupadas.has(r)) { libreActual = null; return; }
+    if (libreActual) { libreActual.rowEnd = r+1; }
+    else { libreActual = { materia:'Libre', esLibre:true, rowStart:r, rowEnd:r+1 }; bloques.push(libreActual); }
+  });
+  if (bloques.length > 0) {
+    bloques.push({ materia:'Recreo', isRecreo:true, ini:RECREO.ini, fin:RECREO.fin, rowStart:4, rowEnd:5 });
+  }
+  return bloques;
+}
+
+/* ================= OVERRIDES (ediciones guardadas) ================= */
+let overrides = {};
+async function cargarOverrides() {
+  try {
+    const r = await window.storage.get('iide-overrides', false);
+    if (r && r.value) overrides = JSON.parse(r.value);
+  } catch(e) { overrides = {}; }
+}
+async function guardarOverrides() {
+  try { await window.storage.set('iide-overrides', JSON.stringify(overrides), false); } catch(e) {}
+}
+function claveOverride(anio, dia, materia, ini) { return anio+'|'+dia+'|'+dia+'|'+materia+'|'+ini; }
+
+/* ================= ESTADO / RENDER ================= */
+const diasNombresJS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+let diaSeleccionado = 'lunes';
+let hoyReal = 'lunes';
+
+function inicializarDiaHoy() {
+  const jsDay = new Date().getDay();
+  const nombre = diasNombresJS[jsDay];
+  if (DIAS.includes(nombre)) { hoyReal = nombre; diaSeleccionado = nombre; }
+  else { hoyReal = ''; diaSeleccionado = 'lunes'; }
+}
+
+function renderTabs() {
+  const wrap = document.getElementById('dayTabs');
+  wrap.innerHTML = '';
+  DIAS.forEach(d => {
+    const btn = document.createElement('button');
+    btn.textContent = DIAS_LABEL[d];
+    if (d === diaSeleccionado) btn.classList.add('active');
+    if (d === hoyReal) btn.classList.add('today');
+    btn.onclick = () => { diaSeleccionado = d; renderTabs(); renderSheet(); };
+    wrap.appendChild(btn);
+  });
+  document.getElementById('weekendNote').classList.toggle('show', hoyReal==='');
+}
+
+let editContext = null;
+
+function renderSheet() {
+  const body = document.getElementById('sheetBody');
+  body.innerHTML = '';
+  const esHoy = (diaSeleccionado === hoyReal);
+  const ahora = new Date();
+  const ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
+  const hayClasesHoy = [1,2,3].some(a => RAW[a][diaSeleccionado].some(s => s));
+
+  [1,2,3].forEach(anio => {
+    const raw = RAW[anio][diaSeleccionado];
+    let bloques = agruparDia(raw);
+    bloques = completarColumna(bloques);
+
+    bloques.forEach(b => {
+      if (!b.isRecreo && !b.esLibre) {
+        const key = anio+'|'+diaSeleccionado+'|'+b.materia+'|'+b.ini;
+        if (overrides[key]) { b.prof = overrides[key].prof; b.aula = overrides[key].aula; }
+      }
+
+      const cell = document.createElement('div');
+      cell.className = 'cell col-'+anio + (b.isRecreo ? ' recreo' : '') + (b.esLibre ? ' empty' : '');
+      cell.style.gridColumn = String(anio);
+      cell.style.gridRow = b.rowStart + ' / ' + b.rowEnd;
+
+      let estado = '';
+      if (esHoy && !b.esLibre) {
+        const iniM = toMin(b.ini), finM = toMin(b.fin);
+        if (ahoraMin >= finM) estado = 'done';
+        else if (ahoraMin >= iniM) estado = 'now';
+        else estado = 'pending';
+      }
+      if (estado) cell.classList.add(estado);
+
+      if (b.esLibre) {
+        cell.textContent = 'Libre';
+      } else if (b.isRecreo) {
+        cell.innerHTML = `<div class="materia">Recreo</div><span class="horario">${b.ini} – ${b.fin}</span>`;
+      } else {
+        cell.innerHTML = `
+          <div class="materia">${b.materia}</div>
+          <span class="horario">${b.ini} – ${b.fin}</span>
+          <div class="prof"><b>${b.prof}</b> · ${b.aula}</div>
+          <div class="edit-hint">✏️ Tocar para editar</div>
+        `;
+        cell.onclick = () => openEdit(anio, diaSeleccionado, b);
+      }
+      body.appendChild(cell);
+    });
+  });
+
+  if (!hayClasesHoy) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-day';
+    empty.style.gridColumn = '1 / -1';
+    empty.textContent = 'Sin clases este día';
+    body.appendChild(empty);
+  }
+}
+
+function openEdit(anio, dia, bloque) {
+  editContext = { anio, dia, materia: bloque.materia, ini: bloque.ini };
+  document.getElementById('emTitle').textContent = bloque.materia + ' · ' + DIAS_LABEL[dia] + ' (' + anio + '° Año)';
+  document.getElementById('emSub').textContent = bloque.ini + ' – ' + bloque.fin;
+  document.getElementById('emProf').value = bloque.prof;
+  document.getElementById('emAula').value = bloque.aula;
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit() { document.getElementById('editOverlay').classList.remove('show'); editContext = null; }
+async function saveEdit() {
+  if (!editContext) return;
+  const key = editContext.anio+'|'+editContext.dia+'|'+editContext.materia+'|'+editContext.ini;
+  overrides[key] = { prof: document.getElementById('emProf').value.trim() || 'A confirmar', aula: document.getElementById('emAula').value.trim() || 'A confirmar' };
+  await guardarOverrides();
+  closeEdit();
+  renderSheet();
+}
+
+function tickClock() {
+  const d = new Date();
+  document.getElementById('liveClock').textContent =
+    String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+async function init() {
+  await cargarOverrides();
+  inicializarDiaHoy();
+  renderTabs();
+  renderSheet();
+  tickClock();
+  setInterval(() => { tickClock(); renderSheet(); }, 30000);
+  setInterval(tickClock, 1000);
+
+  setTimeout(() => { document.getElementById('splash').classList.add('hide'); }, 1700);
+}
+init();
+</script>
+
+</body>
+</html>
