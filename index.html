@@ -8,6 +8,7 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
+<link rel="icon" href="favicon.ico" sizes="any">
 <style>:root {
     --bg:#2b0f1f; --panel:#3a1729; --panel2:#241224;
     --accent:#FFC96E; --accent2:#E8823A;
@@ -133,19 +134,17 @@
     font-size:11px; padding:8px 12px; border-radius:10px; margin-bottom:14px; display:none;
   }
   .weekend-note.show { display:block; }
-  .holiday-note {
-    background:rgba(232,130,58,.14); border:1px solid rgba(232,130,58,.4); color:var(--accent2);
-    font-size:12px; padding:12px 14px; border-radius:12px; margin-bottom:14px; display:none;
+
+  .grid-title {
+    text-align:center; margin-bottom:10px;
   }
-  .holiday-note.show { display:flex; align-items:center; gap:8px; }
-  .holiday-note .hn-ic { font-size:20px; flex-shrink:0; }
-  .holiday-note b { display:block; font-size:12.5px; font-family:var(--font-display); font-weight:800; color:var(--text); margin-bottom:1px; }
-  .next-holiday {
-    font-size:10px; color:var(--text-dim); background:rgba(255,255,255,.04);
-    border:1px solid rgba(255,201,110,.2); border-radius:9px; padding:8px 10px; margin-bottom:12px;
-    display:flex; align-items:center; gap:7px;
+  .grid-title .gt-main {
+    font-family:var(--font-display); font-weight:800; font-size:14px; color:var(--text);
+    letter-spacing:.01em;
   }
-  .next-holiday .nh-ic { font-size:14px; flex-shrink:0; }
+  .grid-title .gt-sub {
+    font-size:10.5px; opacity:.6; margin-top:2px;
+  }
 
   .sheet {
     border:1.5px solid rgba(255,201,110,.35);
@@ -177,7 +176,6 @@
     font-size:11.5px;
     transition: background .3s, box-shadow .3s;
     position:relative;
-    cursor:pointer;
     vertical-align:middle;
   }
   table.sheet-table td:last-child { border-right:none; }
@@ -186,8 +184,6 @@
   .cell .horario { display:block; font-family:'JetBrains Mono',monospace; font-weight:600; font-size:10px; opacity:.7; margin-top:4px; }
   .cell .prof { font-size:10.5px; opacity:.85; margin-top:4px; }
   .cell .prof b { font-weight:600; opacity:1; }
-  .cell .edit-hint { font-size:8.5px; opacity:0; margin-top:5px; color:var(--text-dim2); transition:opacity .2s; }
-  .cell:active .edit-hint, .cell:hover .edit-hint { opacity:.7; }
 
   .cell.empty { opacity:.3; font-style:italic; font-size:10px; text-align:center; }
 
@@ -235,6 +231,32 @@
   .empty-day { text-align:center; padding:8px; font-size:10px; opacity:.4; }
 
   .footer-sig { text-align:center; font-size:10px; opacity:.4; margin-top:22px; letter-spacing:.02em; }
+
+  /* ------- pie de página: version animada + firma ------- */
+  .footer-area {
+    text-align:center; margin-top:24px; padding:14px 12px 18px; border-radius:14px;
+    position:relative; overflow:hidden;
+    animation: footerGlow 3s ease-in-out infinite;
+  }
+  @keyframes footerGlow {
+    0%,100% { box-shadow: inset 0 1px 0 rgba(255,201,110,.08); }
+    50% { box-shadow: inset 0 1px 0 rgba(255,201,110,.3), 0 0 22px rgba(255,201,110,.06); }
+  }
+  .footer-ver-row { display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:5px; }
+  .footer-pulse {
+    width:6px; height:6px; border-radius:50%; background:var(--live); flex-shrink:0;
+    box-shadow:0 0 6px var(--live); animation: footerPulse 1.6s ease-in-out infinite;
+  }
+  @keyframes footerPulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.4; transform:scale(1.3)} }
+  .footer-typing {
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:11.5px;
+    white-space:nowrap;
+    background:linear-gradient(90deg, var(--accent2) 0%, var(--accent) 50%, var(--accent2) 100%);
+    background-size:200% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+    animation: footerShimmer 3s linear infinite;
+  }
+  @keyframes footerShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .footer-sig2 { font-size:11px; opacity:.5; letter-spacing:.02em; }
 
   /* ------- popover de edición (con flecha, ancla a la celda tocada) ------- */
   #editOverlay {
@@ -327,6 +349,33 @@
   .theme-card .sw { width:16px; height:16px; border-radius:5px; }
   .theme-card b { font-size:11px; display:block; color:var(--text); }
   .theme-card small { font-size:9px; opacity:.6; color:var(--text); }
+
+  /* ------- modal de gestión: editar profesores y aulas ------- */
+  #manageOverlay {
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none;
+    align-items:flex-end; justify-content:center; z-index:800;
+  }
+  #manageOverlay.show { display:flex; }
+  #manageModal {
+    background:var(--panel); width:100%; max-width:480px; border-radius:20px 20px 0 0;
+    padding:18px 16px 24px; border-top:1px solid rgba(255,201,110,.3);
+    max-height:82vh; overflow-y:auto; animation: slideUp .25s ease;
+  }
+  #manageModal .th-handle { width:36px; height:4px; background:rgba(255,201,110,.35); border-radius:99px; margin:0 auto 14px; }
+  #manageModal h3 { font-family:var(--font-display); font-size:14.5px; color:var(--accent); margin-bottom:2px; }
+  #manageModal .mm-sub { font-size:10.5px; opacity:.55; margin-bottom:14px; }
+  .manage-day-group { margin-bottom:14px; }
+  .manage-day-group .mg-label {
+    font-family:var(--font-display); font-size:10.5px; font-weight:700; color:var(--accent);
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px; opacity:.8;
+  }
+  .manage-row {
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:var(--panel2); border-radius:11px; padding:10px 12px; margin-bottom:6px; cursor:pointer;
+  }
+  .manage-row .mr-info b { font-size:12px; display:block; }
+  .manage-row .mr-info small { font-size:10px; opacity:.6; display:block; margin-top:2px; }
+  .manage-row .mr-arrow { color:var(--accent); font-size:14px; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -346,6 +395,7 @@
       <span class="sub">Analista de Sistemas · Nivel Terciario ▾</span>
     </div>
     <div class="clock"><small>ahora</small><span id="liveClock">--:--</span></div>
+    <button class="settings-btn" onclick="event.stopPropagation(); openManageModal()" title="Editar profesores y aulas">✏️</button>
     <button class="settings-btn" onclick="event.stopPropagation(); openThemeModal()" title="Ajustes de estilo">⚙️</button>
   </div>
 
@@ -366,11 +416,17 @@
 
   <div class="day-tabs" id="dayTabs"></div>
   <div class="weekend-note" id="weekendNote">Hoy es fin de semana, no hay clases. Mostrando el horario de Lunes.</div>
-  <div class="holiday-note" id="holidayNote"><span class="hn-ic">🎉</span><span><b>Hoy es feriado</b><span id="holidayNoteText"></span></span></div>
 
+  <div class="grid-title" id="gridTitle"></div>
   <div id="sheetsWrap"></div>
 
-  <div class="footer-sig">Desarrollado por Nahuel Rodríguez</div>
+  <div class="footer-area">
+    <div class="footer-ver-row">
+      <span class="footer-pulse"></span>
+      <span class="footer-typing">IIDE Horarios · v1.0</span>
+    </div>
+    <div class="footer-sig2">Desarrollado por Nahuel Rodríguez - Encargado de Computación</div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -378,9 +434,17 @@
 <div id="themeOverlay" onclick="closeThemeModal()">
   <div id="themeModal" onclick="event.stopPropagation()">
     <div class="th-handle"></div>
-    <div class="next-holiday" id="nextHolidayNote" style="display:none"></div>
     <h3>Estilo visual</h3>
     <div class="theme-grid" id="themeGrid"></div>
+  </div>
+</div>
+
+<div id="manageOverlay" onclick="closeManageModal()">
+  <div id="manageModal" onclick="event.stopPropagation()">
+    <div class="th-handle"></div>
+    <h3>Editar profesores y aulas</h3>
+    <div class="mm-sub">Tocá cualquier materia para cambiar su profesor/a o aula</div>
+    <div id="manageList"></div>
   </div>
 </div>
 
@@ -401,37 +465,6 @@
 
 <script>
 /* ================= DATOS BASE (por franja horaria, tal cual el horario original) ================= */
-/* ================= FERIADOS (2do Cuatrimestre 2026, calendario oficial) ================= */
-const FERIADOS_2026 = [
-  { fecha:'2026-08-17', nombre:'Paso a la Inmortalidad del Gral. San Martín' },
-  { fecha:'2026-10-12', nombre:'Día del Respeto a la Diversidad Cultural' },
-  { fecha:'2026-11-23', nombre:'Día de la Soberanía Nacional' },
-  { fecha:'2026-12-07', nombre:'Día no laborable con fines turísticos' },
-  { fecha:'2026-12-08', nombre:'Inmaculada Concepción de María' },
-  { fecha:'2026-12-25', nombre:'Navidad' },
-];
-function fechaISO(d) {
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
-function feriadoDeHoy() {
-  const iso = fechaISO(new Date());
-  return FERIADOS_2026.find(f => f.fecha === iso) || null;
-}
-function proximoFeriado() {
-  const iso = fechaISO(new Date());
-  const prox = FERIADOS_2026.filter(f => f.fecha > iso);
-  return prox.length ? prox[0] : null;
-}
-function diasHasta(fechaStr) {
-  const target = new Date(fechaStr + 'T00:00:00');
-  const hoyMid = new Date(fechaISO(new Date()) + 'T00:00:00');
-  return Math.round((target - hoyMid) / 86400000);
-}
-function formatearFecha(fechaStr) {
-  const d = new Date(fechaStr + 'T00:00:00');
-  return d.toLocaleDateString('es-AR', { day:'numeric', month:'long' });
-}
-
 const DIAS = ['lunes','martes','miercoles','jueves','viernes'];
 const DIAS_LABEL = {lunes:'Lunes', martes:'Martes', miercoles:'Miércoles', jueves:'Jueves', viernes:'Viernes'};
 
@@ -560,15 +593,6 @@ function renderThemeGrid() {
 
 function openThemeModal() {
   renderThemeGrid();
-  const prox = proximoFeriado();
-  const nh = document.getElementById('nextHolidayNote');
-  if (prox) {
-    const d = diasHasta(prox.fecha);
-    nh.style.display = 'flex';
-    nh.innerHTML = `<span class="nh-ic">🎉</span><span>Se viene un feriado: <b style="color:var(--accent)">${prox.nombre}</b> · ${formatearFecha(prox.fecha)} (en ${d} ${d===1?'día':'días'})</span>`;
-  } else {
-    nh.style.display = 'none';
-  }
   document.getElementById('themeOverlay').classList.add('show');
 }
 function closeThemeModal() {
@@ -582,6 +606,66 @@ async function cargarTema() {
     const r = await window.storage.get('iide-tema', false);
     if (r && r.value) aplicarTema(r.value);
   } catch(e) {}
+}
+
+/* ================= GESTIÓN: editar profesores/aulas en un solo lugar ================= */
+function openManageModal() {
+  renderManageList();
+  document.getElementById('manageOverlay').classList.add('show');
+}
+function closeManageModal() {
+  document.getElementById('manageOverlay').classList.remove('show');
+}
+
+function renderManageList() {
+  const wrap = document.getElementById('manageList');
+  wrap.innerHTML = '';
+
+  DIAS.forEach(dia => {
+    const filas = [];
+    C().anios.forEach(anio => {
+      const raw = C().raw[anio][dia];
+      let bloques = agruparDia(raw);
+      bloques.forEach(b => {
+        const key = carreraActual+'|'+anio+'|'+dia+'|'+b.materia+'|'+b.ini;
+        const ov = overrides[key];
+        filas.push({
+          anio, dia, materia: b.materia,
+          prof: ov ? ov.prof : b.prof,
+          aula: ov ? ov.aula : b.aula,
+          ini: b.ini, fin: b.fin
+        });
+      });
+    });
+    if (filas.length === 0) return;
+
+    const group = document.createElement('div');
+    group.className = 'manage-day-group';
+    const label = document.createElement('div');
+    label.className = 'mg-label';
+    label.textContent = DIAS_LABEL[dia];
+    group.appendChild(label);
+
+    filas.forEach(f => {
+      const row = document.createElement('div');
+      row.className = 'manage-row';
+      row.innerHTML = `
+        <div class="mr-info">
+          <b>${f.materia} <span style="opacity:.5;font-weight:500">· ${f.anio}° Año</span></b>
+          <small>${f.ini} – ${f.fin} · ${f.prof} · ${f.aula}</small>
+        </div>
+        <span class="mr-arrow">›</span>
+      `;
+      row.onclick = () => {
+        const rect = row.getBoundingClientRect();
+        closeManageModal();
+        // reusa el popover de edición existente, centrado en pantalla ya que no hay una celda visible detrás
+        openEdit(f.anio, f.dia, { materia:f.materia, prof:f.prof, aula:f.aula, ini:f.ini, fin:f.fin }, { getBoundingClientRect: () => rect });
+      };
+      group.appendChild(row);
+    });
+    wrap.appendChild(group);
+  });
 }
 
 
@@ -680,13 +764,6 @@ function renderTabs() {
     wrap.appendChild(btn);
   });
   document.getElementById('weekendNote').classList.toggle('show', hoyReal==='');
-
-  const feriadoHoy = feriadoDeHoy();
-  const holidayNote = document.getElementById('holidayNote');
-  holidayNote.classList.toggle('show', !!feriadoHoy);
-  if (feriadoHoy) {
-    document.getElementById('holidayNoteText').textContent = ' — ' + feriadoHoy.nombre + '. No hay clases.';
-  }
 }
 
 let editContext = null;
@@ -773,13 +850,24 @@ function renderSheet() {
   const ahora = new Date();
   const ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
   const esHoy = (diaSeleccionado === hoyReal);
-
-  if (esHoy && feriadoDeHoy()) return; // el aviso de feriado ya explica que no hay clases
-
   const sheet = document.createElement('div');
   sheet.className = 'sheet';
-  sheet.appendChild(construirTablaDia(diaSeleccionado, esHoy, ahoraMin, true));
+  sheet.appendChild(construirTablaDia(diaSeleccionado, esHoy, ahoraMin, false));
   wrap.appendChild(sheet);
+
+  actualizarTituloGrilla();
+}
+
+function actualizarTituloGrilla() {
+  const el = document.getElementById('gridTitle');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="gt-main">Horario de Clases · ${C().nombre}</div>
+    <div class="gt-sub">${C().codigo} · ${DIAS_LABEL[diaSeleccionado]}${esHoyTexto()}</div>
+  `;
+}
+function esHoyTexto() {
+  return diaSeleccionado === hoyReal ? ' · hoy' : '';
 }
 
 function toggleCareerMenu() {
